@@ -15,12 +15,6 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="trie_header.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="trie_iterator.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="trie.h">
       <Filter>Header Files</Filter>
     </ClInclude>
