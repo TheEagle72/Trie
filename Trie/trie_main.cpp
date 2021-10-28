@@ -4,9 +4,9 @@
 template <typename T>
 void print_container(T arg)
 {
-	for (auto elem: arg)
+	for (auto elem : arg)
 	{
-		
+
 	}
 }
 
@@ -15,14 +15,13 @@ void print_container(T arg)
 int  main()
 {
 	trie<int> my_trie;
+	my_trie.insert("abc", 3);
+	my_trie.insert("ab", 2);
+	my_trie.insert("a", 1);
+	my_trie.insert("abcd", 4);
 
-	my_trie.insert("abc", 1);
+	trie<int> my_trie2{ my_trie };
 
-	std::array<int, 10> a1;
-
-	int* a2 = new int[5];
-
-	
-
+	trie<int> my_trie3{ std::move(my_trie) };
 	return 0;
 }
