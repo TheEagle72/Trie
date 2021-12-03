@@ -18,7 +18,9 @@ int  main()
 	my_trie.insert("abc", 3);
 	my_trie.insert("ab", 2);
 	my_trie.insert("a", 1);
-	my_trie.insert("abcd", 4);
+	auto a = my_trie.insert("abcd", 4);
+	auto b = a.first;
+	auto c = a.second;
 
 	trie<int> my_trie2{ my_trie };
 

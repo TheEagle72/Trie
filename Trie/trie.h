@@ -1,5 +1,6 @@
 #pragma once
 
+#include <algorithm>
 #include <string>
 #include <map>
 #include <memory>
@@ -27,13 +28,14 @@ public:
 	using const_iterator = basic_trie_iterator<std::add_const_t<value_type>>;
 
 	trie();//default constructor
-	template <class InputIterator> trie(InputIterator first, InputIterator last); //range constructor
+	template <typename InputIterator> trie(InputIterator first, InputIterator last); //range constructor
 	trie(const trie<value_type>& other); //copy constructor
 	trie(trie<value_type>&& other) noexcept; //move constructor
 	~trie() = default; //destructor
 
 	trie<value_type>& operator= (const trie& other); //copy assignment
 	trie<value_type>& operator= (trie&& other) noexcept; //move assignment
+	bool operator==(const trie& other);
 
 	[[nodiscard]] iterator begin();
 	[[nodiscard]] iterator end();
@@ -45,10 +47,10 @@ public:
 	[[nodiscard]] size_t size() const;
 
 	value_type& operator[] (const key_type& key);
-	std::pair<iterator, bool> insert(const key_type& key, value_type&& value);
-	std::pair<iterator, bool> insert_or_assign(const key_type& key, value_type&& value);
-	template <class InputIterator> void insert(InputIterator first, InputIterator last); //insert range of elements?
-	template <class InputIterator> void insert_or_assign(InputIterator first, InputIterator last); //insert range of elements?
+	std::pair<iterator, bool> insert(const key_type& key, const value_type& value);
+	std::pair<iterator, bool> insert_or_assign(const key_type& key, const value_type& value);
+	template <typename InputIterator> void insert(InputIterator first, InputIterator last); //insert range of elements?
+	template <typename InputIterator> void insert_or_assign(InputIterator first, InputIterator last); //insert range of elements?
 
 	void erase(iterator position);
 	size_t erase(const key_type& k);
@@ -69,22 +71,22 @@ class trie<T>::node final
 	class node_exception;
 	key_type key_;
 	value_type value_;
-	//todo store value with unique pointer so we can create node with not default constructable value?
 	bool have_value_ = false;
 
 	std::map<key_type, std::shared_ptr<node>> children_;
 public:
 	size_t size() const;
 	bool empty() const;
-	node() = default;  
+	node() = default;
 	node(const key_type& key);
-	node(const key_type& key, value_type&& value);
-	void insert(const key_type& key, std::shared_ptr<node>&& node_);
-	void insert_or_assign(key_type key, std::shared_ptr<node>&& node_);
+	node(const key_type& key, const value_type& value);
+	void insert(const key_type& key, std::shared_ptr<node> node_);
+	void insert_or_assign(const key_type& key, std::shared_ptr<node> node_);
 	bool have_child(const key_type&) const;
 	bool have_value() const;
 	void set_value(value_type&& value);
 	value_type value() const;
+	std::shared_ptr<node> get_parent() const;
 	std::shared_ptr<node> at(const key_type& key);
 };
 
@@ -99,6 +101,13 @@ template <typename T>
 trie<T>::trie() :root_(std::make_shared<node>()) {}
 
 template <typename T>
+template <typename InputIterator>
+trie<T>::trie(InputIterator first, InputIterator last)
+{
+	insert(first, last);
+}
+
+template <typename T>
 trie<T>::trie(const trie<value_type>& other) { *this = other; }
 
 template <typename T>
@@ -107,7 +116,12 @@ trie<T>::trie(trie<value_type>&& other) noexcept { *this = std::move(other); }
 template <typename T>
 trie<typename trie<T>::value_type>& trie<T>::operator=(const trie& other)
 {
-	root_.reset();
+	/*if (this == other) todo fix issue with comparision
+	{
+		return *this;
+	}*/
+	
+	root_.reset(); //todo for some reason root_.reset(other.root_); not working 
 	root_ = other.root_;
 
 	size_ = other.size();
@@ -126,6 +140,25 @@ trie<typename trie<T>::value_type>& trie<T>::operator=(trie&& other) noexcept
 }
 
 template <typename T>
+bool trie<T>::operator==(const trie& other)
+{
+	if (size_!=other.size())
+	{
+		return false;
+	}
+
+	auto current_node_this = root_;
+	auto current_node_other = other.root_;
+	return false;
+}
+
+template <typename T>
+typename trie<T>::iterator trie<T>::begin()
+{
+	return iterator(root_->children_.begin()->second);
+}
+
+template <typename T>
 bool trie<T>::empty() const
 {
 	return root_;
@@ -138,10 +171,40 @@ size_t trie<T>::size() const
 }
 
 template <typename T>
-std::pair<typename trie<T>::iterator, bool> trie<T>::insert(const key_type& key, value_type&& value)
+std::pair<typename trie<T>::iterator, bool> trie<T>::insert(const key_type& key, const value_type& value)
 {
 	std::shared_ptr<node> current_node{ root_ };
 	bool was_inserted = false;
+
+	for (size_t i = 0; i < key.length() - 1; ++i)
+	{
+		std::string current_letter{ key.at(i) };
+		if (!current_node->have_child(current_letter))
+		{
+			current_node->insert(current_letter, std::make_shared<node>(current_letter));
+			++size_;
+		}
+		current_node = current_node->at(current_letter);
+	}
+
+	std::string last_letter{ key.back() };
+	if (!current_node->have_child(last_letter))
+	{
+		current_node->insert(last_letter, std::make_shared<node>(last_letter, value));
+		current_node = current_node->at(last_letter);
+		++size_;
+		was_inserted = true;
+	}
+
+	return std::make_pair(iterator{current_node}, was_inserted);
+}
+
+template <typename T>
+std::pair<typename trie<T>::iterator, bool> trie<T>::insert_or_assign(const key_type& key, const value_type& value)
+{
+	std::shared_ptr<node> current_node{ root_ };
+	bool was_inserted = false;
+
 	for (size_t i = 0; i < key.length() - 1; ++i)
 	{
 		std::string current_letter{ key.at(i) };
@@ -157,23 +220,18 @@ std::pair<typename trie<T>::iterator, bool> trie<T>::insert(const key_type& key,
 	if (!current_node->have_child(last_letter))
 	{
 		current_node->insert(last_letter, std::make_shared<node>(last_letter, std::forward<value_type>(value)));
+		current_node = current_node->at(last_letter);
 		++size_;
 		was_inserted = true;
 	}
-
-	//return { {}, was_inserted };
-	return {};
-}
-
-template <typename T>
-std::pair<typename trie<T>::iterator, bool> trie<T>::insert_or_assign(const key_type& key, value_type&& value)
-{
-	const auto [it, was_inserted] = insert(key, std::forward<value_type>(value));
-
-	if (!was_inserted)
+	else
 	{
-
+		//assign
+		current_node = current_node->at(last_letter);
+		current_node->set_value(value);
 	}
+
+	return std::make_pair(iterator{ current_node }, was_inserted);
 }
 
 template <typename T>
@@ -223,18 +281,20 @@ template <typename T>
 trie<T>::node::node(const key_type& key) : key_(key), value_() {}
 
 template <typename T>
-trie<T>::node::node(const key_type& key, value_type&& value) : key_(key), value_(std::forward<value_type>(value)) {}
+trie<T>::node::node(const key_type& key, const value_type& value) : key_(key), value_(value) {}
 
 template <typename T>
-void trie<T>::node::insert(const key_type& key, std::shared_ptr<node>&& node_)
+void trie<T>::node::insert(const key_type& key, std::shared_ptr<node> node_)
 {
 	have_value_ = true;
 	children_.insert({ key, std::forward<std::shared_ptr<node>>(node_) });
 }
 
 template <typename T>
-void trie<T>::node::insert_or_assign(key_type key, std::shared_ptr<node>&& node_)
+void trie<T>::node::insert_or_assign(const key_type& key, std::shared_ptr<node> node_)
 {
+	have_value_ = true;
+	children_.insert_or_assign({ key, std::forward<std::shared_ptr<node>>(node_) });
 }
 
 template <typename T>
@@ -276,17 +336,17 @@ template <typename  T>
 template <typename  N>
 class trie<T>::basic_trie_iterator final
 {
-	std::shared_ptr<node> ptr_;
+	std::weak_ptr<node> ptr_;
 public:
 
-	using iterator_category = std::bidirectional_iterator_tag;
+	using iterator_category = std::forward_iterator_tag;
 	using value_type = N;
 	using pointer = N*;
 	using reference = N&;
 
-	basic_trie_iterator() = default; //todo delete later
+	basic_trie_iterator(const std::shared_ptr<node>& node_);
 	basic_trie_iterator(value_type& x);
-	basic_trie_iterator(const basic_trie_iterator& mit);
+	basic_trie_iterator(const basic_trie_iterator& other);
 
 	basic_trie_iterator& operator++();
 	basic_trie_iterator operator++(int);
@@ -300,8 +360,34 @@ public:
 
 template <typename T>
 template <typename N>
-trie<T>::basic_trie_iterator<N>::basic_trie_iterator(value_type& x)
-{
+trie<T>::basic_trie_iterator<N>::basic_trie_iterator(const std::shared_ptr<node>& node_) : ptr_(node_) {}
 
+template <typename T>
+template <typename N>
+trie<T>::basic_trie_iterator<N>::basic_trie_iterator(value_type& x) {}
+
+template <typename T>
+template <typename N>
+trie<T>::basic_trie_iterator<N>::basic_trie_iterator(const basic_trie_iterator& other) : ptr_(other.ptr_) {}
+
+template <typename T>
+template <typename N>
+trie<T>::basic_trie_iterator<N>& trie<T>::basic_trie_iterator<N>::operator++()
+{
+	if (ptr_.expired())
+	{
+		return end();
+	}
+
+	std::shared_ptr<node> shared = ptr_.lock();
+
+	return {};
+}
+
+template <typename T>
+template <typename N>
+bool trie<T>::basic_trie_iterator<N>::operator==(const basic_trie_iterator& rhs)
+{
+	return (ptr_ == rhs.ptr_);
 }
 
