@@ -1,0 +1,6 @@
+
+constexpr to member functions
+noexcept
+
+iterator from const trie should be const
+	

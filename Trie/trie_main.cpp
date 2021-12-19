@@ -1,29 +1,31 @@
 #include "trie.h"
-#include <array>
-
-template <typename T>
-void print_container(T arg)
-{
-	for (auto elem : arg)
-	{
-
-	}
-}
-
-
+#include <iostream>
 
 int  main()
 {
+
 	trie<int> my_trie;
-	my_trie.insert("abc", 3);
-	my_trie.insert("ab", 2);
-	my_trie.insert("a", 1);
-	auto a = my_trie.insert("abcd", 4);
-	auto b = a.first;
-	auto c = a.second;
+	my_trie.insert_or_assign("ab", 2);
+	my_trie.insert_or_assign("ac", 10);
+	my_trie.insert_or_assign("acde", 1);
+	my_trie.insert_or_assign("acf", 4);
 
-	trie<int> my_trie2{ my_trie };
+	auto it = my_trie.begin();
+	
+	while (it != my_trie.end())
+	{
+		if (it.is_key())
+		{
+			std::cout << it->first << std::endl;
+			std::cout << it->second << std::endl;
+		}
+		++it;
+	}
 
+	//my_trie.erase(my_trie.find("ac"));
+	
+    trie<int> my_trie2{ my_trie };
 	trie<int> my_trie3{ std::move(my_trie) };
+
 	return 0;
 }
